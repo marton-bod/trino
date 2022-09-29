@@ -557,7 +557,7 @@ Property Name                              Description
    * - ``hive.metastore.username``
      - The username Trino uses to access the Hive metastore.
    * - ``hive.metastore.authentication.type``
-     - Hive metastore authentication type. Possivel values are ``NONE`` or
+     - Hive metastore authentication type. Possible values are ``NONE`` or
        ``KERBEROS``. Default is ``NONE``.
    * - ``hive.metastore.thrift.impersonation.enabled``
      - Enable Hive metastore end user impersonation.
@@ -718,6 +718,19 @@ connector.
         splits result in more parallelism and thus can decrease latency, but
         also have more overhead and increase load on the system.
       - ``64 MB``
+
+.. _hive-table-redirection:
+
+Table redirection
+-----------------
+
+.. include:: table-redirection.fragment
+
+The connector supports redirection from Hive tables to Iceberg
+and Delta Lake tables with the following catalog configuration properties:
+
+- ``hive.iceberg-catalog-name`` for redirecting the query to :doc:`/connector/iceberg`
+- ``hive.delta-lake-catalog-name`` for redirecting the query to :doc:`/connector/delta-lake`
 
 .. _hive-sql-support:
 
@@ -1078,6 +1091,11 @@ The following procedures are available:
 * ``system.flush_metadata_cache()``
 
   Flush all Hive metadata caches.
+
+* ``system.flush_metadata_cache(schema_name => ..., table_name => ...)``
+
+  Flush Hive metadata caches entries connected with selected table.
+  Procedure requires named parameters to be passed
 
 * ``system.flush_metadata_cache(schema_name => ..., table_name => ..., partition_column => ARRAY[...], partition_value => ARRAY[...])``
 

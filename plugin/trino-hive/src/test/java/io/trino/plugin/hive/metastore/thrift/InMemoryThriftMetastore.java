@@ -20,6 +20,7 @@ import io.trino.plugin.hive.PartitionStatistics;
 import io.trino.plugin.hive.SchemaAlreadyExistsException;
 import io.trino.plugin.hive.TableAlreadyExistsException;
 import io.trino.plugin.hive.acid.AcidTransaction;
+import io.trino.plugin.hive.metastore.AcidTransactionOwner;
 import io.trino.plugin.hive.metastore.HivePrincipal;
 import io.trino.plugin.hive.metastore.HivePrivilegeInfo;
 import io.trino.plugin.hive.metastore.HivePrivilegeInfo.HivePrivilege;
@@ -704,5 +705,16 @@ public class InMemoryThriftMetastore
                 map.put(newKey, map.remove(key));
             }
         }
+    }
+
+    @Override
+    public long acquireTableExclusiveLock(AcidTransactionOwner transactionOwner, String queryId, String dbName, String tableName) {
+        // no-op
+        return -1;
+    }
+
+    @Override
+    public void releaseTableLock(long lockId) {
+        // no-op
     }
 }

@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 public enum CatalogType
 {
     TESTING_FILE_METASTORE,
+    TESTING_IN_MEMORY_METASTORE,
     HIVE_METASTORE,
     GLUE,
     /**/;

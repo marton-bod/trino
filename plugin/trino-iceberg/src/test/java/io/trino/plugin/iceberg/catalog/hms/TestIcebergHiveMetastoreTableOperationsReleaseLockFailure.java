@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.iceberg.catalog.hive;
+package io.trino.plugin.iceberg.catalog.hms;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
@@ -25,23 +25,18 @@ import io.trino.plugin.iceberg.TestingIcebergConnectorFactory;
 import io.trino.spi.security.PrincipalType;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.LocalQueryRunner;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.util.Optional;
 
-import static com.google.common.io.MoreFiles.deleteRecursively;
-import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
 
 @Test(singleThreaded = true)
-public class TestIcebergFileMetastoreTableOperationsUnlockFailure
+public class TestIcebergHiveMetastoreTableOperationsReleaseLockFailure
         extends AbstractTestQueryFramework
 {
     private static final String ICEBERG_CATALOG = "iceberg";
@@ -49,23 +44,19 @@ public class TestIcebergFileMetastoreTableOperationsUnlockFailure
     private File baseDir;
 
     @Override
-    protected LocalQueryRunner createQueryRunner()
+    protected LocalQueryRunner createQueryRunner() throws Exception
     {
         Session session = testSessionBuilder()
                 .setCatalog(ICEBERG_CATALOG)
                 .setSchema(SCHEMA_NAME)
                 .build();
 
-        try {
-            baseDir = Files.createTempDirectory(null).toFile();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        baseDir = Files.createTempDirectory(null).toFile();
+        baseDir.deleteOnExit();
 
         LocalQueryRunner queryRunner = LocalQueryRunner.create(session);
 
-        ThriftMetastore thriftMetastore = createMetastoreWithUnlockFailure();
+        ThriftMetastore thriftMetastore = createMetastoreWithReleaseLockFailure();
         TestingIcebergHiveMetastoreCatalogModule testModule = new TestingIcebergHiveMetastoreCatalogModule(thriftMetastore);
         HiveMetastore metastore = testModule.getHiveMetastore();
 
@@ -84,21 +75,25 @@ public class TestIcebergFileMetastoreTableOperationsUnlockFailure
         return queryRunner;
     }
 
-    private InMemoryThriftMetastore createMetastoreWithUnlockFailure() {
+    private InMemoryThriftMetastore createMetastoreWithReleaseLockFailure()
+    {
         return new InMemoryThriftMetastore(new File(baseDir + "/metastore"), new ThriftMetastoreConfig()) {
             @Override
-            public long acquireTableExclusiveLock(AcidTransactionOwner transactionOwner, String queryId, String dbName, String tableName) {
+            public long acquireTableExclusiveLock(AcidTransactionOwner transactionOwner, String queryId, String dbName, String tableName)
+            {
                 // returning dummy lock
                 return 100;
             }
 
             @Override
-            public void releaseTableLock(long lockId) {
-                throw new RuntimeException("Unlock failed!");
+            public void releaseTableLock(long lockId)
+            {
+                throw new RuntimeException("Release table lock has failed!");
             }
 
             @Override
-            public synchronized void createTable(org.apache.hadoop.hive.metastore.api.Table table) {
+            public synchronized void createTable(org.apache.hadoop.hive.metastore.api.Table table)
+            {
                 // InMemoryThriftMetastore throws an exception if the table has any privileges set
                 table.setPrivileges(null);
                 super.createTable(table);
@@ -106,21 +101,12 @@ public class TestIcebergFileMetastoreTableOperationsUnlockFailure
         };
     }
 
-    @AfterClass(alwaysRun = true)
-    public void cleanup()
-            throws Exception
-    {
-        if (baseDir != null) {
-            deleteRecursively(baseDir.toPath(), ALLOW_INSECURE);
-        }
-    }
-
     @Test
-    public void testUnlockFailureDoesNotCorruptTheTableMetadata()
+    public void testReleaseLockFailureDoesNotCorruptTheTable()
     {
-        String tableName = "test_unlock_failure";
-        getQueryRunner().execute(format("CREATE TABLE %s (a_varchar) AS VALUES ('Trino')", tableName));
-        getQueryRunner().execute("INSERT INTO " + tableName + " VALUES 'rocks'");
+        String tableName = "test_release_lock_failure";
+        query(format("CREATE TABLE %s (a_varchar) AS VALUES ('Trino')", tableName));
+        query(format("INSERT INTO %s VALUES 'rocks'", tableName));
         assertQuery("SELECT * FROM " + tableName, "VALUES 'Trino', 'rocks'");
     }
 }

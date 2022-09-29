@@ -706,15 +706,4 @@ public class InMemoryThriftMetastore
             }
         }
     }
-
-    @Override
-    public long acquireTableExclusiveLock(AcidTransactionOwner transactionOwner, String queryId, String dbName, String tableName) {
-        // no-op
-        return -1;
-    }
-
-    @Override
-    public void releaseTableLock(long lockId) {
-        // no-op
-    }
 }

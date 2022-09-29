@@ -13,13 +13,44 @@
  */
 package io.trino.plugin.hive.metastore.thrift;
 
+import io.trino.plugin.hive.metastore.HiveMetastore;
+import io.trino.plugin.hive.metastore.HiveMetastoreFactory;
 import io.trino.spi.security.ConnectorIdentity;
 
 import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
 
 public interface ThriftMetastoreFactory
 {
     boolean isImpersonationEnabled();
 
     ThriftMetastore createMetastore(Optional<ConnectorIdentity> identity);
+
+    static ThriftMetastoreFactory ofInstance(ThriftMetastore metastore)
+    {
+        return new StaticThriftMetastoreFactory.StaticThriftMetastoreFactory(metastore);
+    }
+
+    class StaticThriftMetastoreFactory implements ThriftMetastoreFactory
+    {
+        private final ThriftMetastore metastore;
+
+        private StaticThriftMetastoreFactory(ThriftMetastore metastore)
+        {
+            this.metastore = requireNonNull(metastore, "metastore is null");
+        }
+
+        @Override
+        public boolean isImpersonationEnabled()
+        {
+            return false;
+        }
+
+        @Override
+        public ThriftMetastore createMetastore(Optional<ConnectorIdentity> identity)
+        {
+            return metastore;
+        }
+    }
 }
